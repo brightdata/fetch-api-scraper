@@ -1,5 +1,8 @@
 # URL to Markdown for Python with the Bright Data Fetch API
 
+Convert any URL to Markdown, text, HTML or JSON-LD with Python, for LLMs and RAG. Gets past bot blocks. No browser, no dependencies.
+Built on the [Bright Data Fetch API](https://docs.brightdata.com/products/scrapers/fetch-api/introduction). New accounts get 5,000 free credits a month.
+
 [![Live check](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml)
 [![last verified](https://img.shields.io/badge/last%20verified-9%20Nov%202026-brightgreen)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->
 
