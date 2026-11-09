@@ -8,9 +8,8 @@
 Convert any URL to Markdown for an LLM, in Python: send a web page URL, get
 back the page as Markdown, plain text, raw HTML and JSON-LD structured data,
 with its title and final URL. From any country, past bot blocks, with no
-browser and no dependencies. Built on the Bright Data Fetch API, one of the
-[Bright Data Scraper API](https://brightdata.com/products/web-scraper?utm_source=github)
-scrapers.
+browser and no dependencies. Built on the
+[Bright Data Fetch API](https://docs.brightdata.com/products/scrapers/fetch-api/introduction).
 
 Also here: a one-command CLI for a list of URLs, and the
 [Bright Data CLI](#fetch-api-mcp-server-and-claude-code-skill), which needs no Python at all.
