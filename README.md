@@ -1,12 +1,12 @@
-# Fetch API scraper for Python
+# URL to Markdown for Python with the Bright Data Fetch API
 
 [![Live check](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml)
 [![last verified](https://img.shields.io/badge/last%20verified-9%20Nov%202026-brightgreen)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->
 
-[Quickstart](#how-to-scrape-any-web-page-to-markdown-with-python) · [Bot blocks](#scrape-pages-that-block-bots-without-a-browser) · [CLI](#bulk-url-to-markdown-cli) · [Endpoints](#scrape-web-pages-as-markdown-text-html-and-json-ld) · [Data](#fetch-api-data-fields-json) · [Errors](#fetch-api-scraper-errors) · [MCP and Claude Code](#fetch-api-mcp-server-and-claude-code-skill) · [Free credits](#is-the-fetch-api-free) · [Docs](https://docs.brightdata.com/products/scrapers/fetch-api/introduction) · [Support](#support)
+[Quickstart](#how-to-convert-a-url-to-markdown-with-python) · [Any website](#scrape-any-website-even-ones-that-block-bots) · [CLI](#bulk-url-to-markdown-cli) · [Formats](#website-to-markdown-text-html-and-json-ld-for-llms) · [Data](#fetch-api-data-fields-json) · [Errors](#fetch-api-scraper-errors) · [MCP and Claude Code](#fetch-api-mcp-server-and-claude-code-skill) · [Free credits](#is-the-fetch-api-free) · [Docs](https://docs.brightdata.com/products/scrapers/fetch-api/introduction) · [Support](#support)
 
-Any public web page as JSON, in Python: send a URL, get back the page as
-Markdown ready for an LLM, plain text, raw HTML and JSON-LD structured data,
+Convert any URL to Markdown for an LLM, in Python: send a web page URL, get
+back the page as Markdown, plain text, raw HTML and JSON-LD structured data,
 with its title and final URL. From any country, past bot blocks, with no
 browser and no dependencies. Built on the Bright Data Fetch API, one of the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper?utm_source=github)
@@ -15,7 +15,7 @@ scrapers.
 Also here: a one-command CLI for a list of URLs, and the
 [Bright Data CLI](#fetch-api-mcp-server-and-claude-code-skill), which needs no Python at all.
 
-## How to scrape any web page to Markdown with Python
+## How to convert a URL to Markdown with Python
 
 Python 3.10 or newer, and nothing to install: this is the standard library.
 
@@ -75,10 +75,11 @@ is off, and a failed page then looks the same as no page.
 `country` is optional. Send it in upper case; see
 [Fetch a page from another country](#fetch-a-page-from-another-country).
 
-## Scrape pages that block bots, without a browser
+## Scrape any website, even ones that block bots
 
-The Fetch API runs the request through Bright Data's unblocking: no headless
-browser, no proxy setup, no CAPTCHA solving on your side. On 9 Nov 2026 it
+The Fetch API can scrape any public website, including ones that block bots.
+It runs the request through Bright Data's unblocking: no headless browser, no
+proxy setup, no CAPTCHA solving on your side. On 9 Nov 2026 it
 returned a Zillow search page, a site that blocks most scrapers, in 12
 seconds, with 9,308 characters of Markdown and the page's JSON-LD.
 
@@ -136,7 +137,7 @@ https://example.com: Example Domain
 https://example.com/this-page-does-not-exist failed: The navigation resulted in a dead page (404 status code)
 ```
 
-## Scrape web pages as Markdown, text, HTML and JSON-LD
+## Website to Markdown, text, HTML and JSON-LD for LLMs
 
 The Fetch API is one scraper with one input, documented in the
 [Fetch API docs](https://docs.brightdata.com/products/scrapers/fetch-api/introduction).
@@ -427,6 +428,6 @@ Anything about the API, your account or your credits:
 
 [Apache 2.0](LICENSE).
 
-## Fetch API scraper for Node.js
+## URL to Markdown for Node.js
 
-The same Fetch API scraper is available for Node.js: [brightdata/fetch-api-scraper-node](https://github.com/brightdata/fetch-api-scraper-node).
+The same URL to Markdown scraper is available for Node.js: [brightdata/fetch-api-scraper-node](https://github.com/brightdata/fetch-api-scraper-node).

@@ -70,7 +70,7 @@ jobs:
           def block(text, lang):
               return re.search(r"```" + lang + r"\n(.*?)```", text, re.S).group(1)
 
-          quick = section("How to scrape any web page to Markdown with Python")
+          quick = section("How to convert a URL to Markdown with Python")
           snippet = block(quick, "python")
           command = block(section("Bulk URL to Markdown CLI"), "bash")
           for required, where in (("BRIGHTDATA_API_TOKEN", snippet),

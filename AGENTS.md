@@ -58,7 +58,8 @@ pages disagree with the live API, the live API is what is written here.
   https://docs.brightdata.com/scrapers-full.json. Do not edit it by hand.
 - The "last verified" badge line at the top of the README is rewritten by the
   daily run. Do not edit it by hand.
-- Headings are written for search: "Fetch API scraper for Python", "How to scrape ...". Keep that
+- Headings are written for search: "URL to Markdown for Python", "How to convert a URL to
+  Markdown ...". Keep that
   pattern when adding a section.
 - Keep it small. Beyond the status poll, do not add retries, deduplication,
   scheduling, databases, async examples or concurrency.
