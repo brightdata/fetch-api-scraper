@@ -64,8 +64,7 @@ Web scraping - Wikipedia | 68572 characters of Markdown
 # Web scraping
 ```
 
-Expect 7 to 45 seconds a page: the API fetches it and the loop waits. Billed
-[per page](https://brightdata.com/pricing/web-scraper).
+Billed [per page](https://brightdata.com/pricing/web-scraper).
 
 Two things in that snippet are not optional.
 
