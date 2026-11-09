@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fetch-api-scraper"
+version = "0.1.0"
+description = "Fetch API scraper in Python: any public web page as Markdown, plain text, HTML and JSON-LD, ready for an LLM, on the Bright Data Fetch API. Gets past bot blocks with no browser and no dependencies. 5,000 free credits a month."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+fetch-api-scraper = "fetch_api_scraper.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/brightdata/fetch-api-scraper"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fetch_api_scraper"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # a literal API payload reads better on one line

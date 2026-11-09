@@ -1,0 +1,129 @@
+# Runs by itself on every push and pull request.
+# Never calls the Fetch API, so it needs no token and costs nothing.
+name: Tests (automatic, no API calls, free)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # a Run workflow button, to re-run the tests without a commit
+
+permissions:
+  contents: read
+
+concurrency:  # a newer push to the same branch or PR replaces the run still going
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Run the tests and the code style check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install the package and its test tools
+        run: pip install -e ".[dev]"
+      - name: Check code style with ruff
+        run: ruff check .
+      - name: Run the tests
+        run: pytest
+      - name: README headings are well formed
+        # A section rewrite once produced "## The data## The data" and shipped;
+        # a heading with a second run of hashes mid-line is never intended.
+        run: |
+          if grep -nE '^#+ .*#{2,} ' README.md; then
+            echo "::error::malformed heading in README.md"; exit 1
+          fi
+
+  # These install steps shipped broken once, because they were only ever run
+  # from a working copy that already had the package. This job follows the
+  # README on an empty machine and stops where the tool asks for a token, which
+  # proves the clone, the install and the command without spending money.
+  coldstart:
+    name: Follow the README from scratch on an empty machine
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Copy the install steps out of the README and run them
+        run: |
+          set -o pipefail
+          python - <<'PY' > "$RUNNER_TEMP/quickstart.sh"
+          import os
+          import pathlib
+          import re
+          import sys
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+
+          def section(title):
+              return readme.split(f"## {title}", 1)[1].split("\n## ", 1)[0]
+
+          def block(text, lang):
+              return re.search(r"```" + lang + r"\n(.*?)```", text, re.S).group(1)
+
+          quick = section("How to scrape any web page to Markdown with Python")
+          snippet = block(quick, "python")
+          command = block(section("Bulk URL to Markdown CLI"), "bash")
+          for required, where in (("BRIGHTDATA_API_TOKEN", snippet),
+                                  ("urllib.request", snippet),
+                                  ("fetch-api-scraper", command)):
+              if required not in where:
+                  sys.exit(f"the README no longer contains {required!r} where the cold start expects it")
+
+          steps = ["# --- Quickstart: the standard library path, nothing to install ---"]
+          pathlib.Path(os.environ["RUNNER_TEMP"], "quickstart_snippet.py").write_text(snippet, encoding="utf-8")
+          steps += [
+              "set +e",
+              "python quickstart_snippet.py > out.txt 2> err.txt",
+              "code=$?",
+              "set -e",
+              'test "$code" != "0" || { echo "the snippet ran without a token?"; cat out.txt; exit 1; }',
+              'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
+              'echo "Quickstart: runs on a bare Python, and stops at the token, as documented."',
+              "# --- Or run it as a command: the CLI path ---",
+          ]
+          for line in command.splitlines():
+              if line.startswith("fetch-api-scraper"):
+                  continue  # run below, so the exit code can be checked
+              if line.startswith("pip install"):
+                  # The repository is public, so this installs the exact line a
+                  # reader pastes. On a private fork the URL is unreachable, and
+                  # the check falls back to the checkout on its own.
+                  url = line.split("git+", 1)[1].strip() if "git+" in line else ""
+                  line = "\n".join([
+                      f'repo="{url}"',
+                      'code=$(curl -s -o /dev/null -w "%{http_code}" "$repo" || echo 000)',
+                      'if [ "$code" = "200" ]; then',
+                      f'  echo "$repo is public: installing the exact README line"',
+                      f'  {line}',
+                      "else",
+                      '  echo "NOTE: $repo returns HTTP $code, so it is not public yet."',
+                      '  echo "Installing from this checkout instead."',
+                      '  pip install "$GITHUB_WORKSPACE"',
+                      "fi",
+                  ])
+              steps.append(line)
+          steps += [
+              "set +e",
+              'fetch-api-scraper https://example.com > out.txt 2> err.txt',
+              "code=$?",
+              "set -e",
+              'test "$code" = "2" || { echo "expected exit 2, got $code"; cat err.txt; exit 1; }',
+              'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
+              'echo "Success: a new user can follow both README paths from scratch."',
+          ]
+          print("\n".join(steps))
+          PY
+          echo "--- these commands came out of README.md ---"
+          cat "$RUNNER_TEMP/quickstart.sh"
+          echo "--- running them on this empty machine ---"
+          cd "$RUNNER_TEMP" && bash -e "$RUNNER_TEMP/quickstart.sh"

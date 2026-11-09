@@ -1,0 +1,326 @@
+# The only workflow that calls the real API. Needs the BRIGHTDATA_API_TOKEN
+# secret and is billed per page.
+#
+# Four ways it runs:
+#   on every push to main: one page and the README's links,
+#     one record and under a minute, so a broken commit shows up at once.
+#     A newer push cancels a run still going for an older commit.
+#   by hand, from the Actions tab, to fetch whatever URLs you choose
+#   every day at 08:00 UTC except Monday: one page, the async path, and the
+#     field tables, about two records
+#   every Monday at 08:00 UTC: the same, plus every code block in the README,
+#     about 15 records and 5 minutes
+#
+# Every run also checks, for free and with no secret, that the newest Bright
+# Data CLI still accepts every CLI line in the README. Readers run `npx -p
+# @brightdata/cli`, which is always the newest release, while the jobs that hold
+# the secret run the version pinned in BDATA_CLI below. When it warns about a
+# new release, bump BDATA_CLI.
+#
+# A slow day at the API shows up as a red run. Rerun it before reading more
+# into it.
+#
+# The daily and Monday runs end by rewriting the "last verified" badge line at
+# the top of README.md with today's date, and committing it if it changed. Push
+# runs never do this, so your own push is never followed by a bot commit. Only
+# the main repository commits; a copy of the repository just runs the checks.
+name: Live check
+
+run-name: "${{ github.event.schedule == '0 8 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || github.event_name == 'push' && format('Push check: {0}', github.event.head_commit.message) || format('Fetch {0}', inputs.urls) }}"
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 8 * * 0,2-6"  # daily smoke, every day except Monday
+    - cron: "0 8 * * 1"    # Monday: the whole README
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: Page URLs, separated by spaces
+        default: https://example.com https://en.wikipedia.org/wiki/Web_scraping
+      validate:
+        description: Also run every README block, as the Monday run does
+        type: boolean
+        default: false
+      only:
+        description: Block numbers to run, comma separated, for a cheap check. Empty means all.
+        default: ""
+
+permissions:
+  contents: write  # the daily check commits the regenerated field tables
+
+env:
+  BDATA_CLI: "0.4.0"  # pinned for the jobs that hold the API secret; bump after cli-syntax passes
+
+concurrency:
+  group: live-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}  # only the newest commit matters
+
+jobs:
+  scrape:
+    name: Fetch the pages and attach them to this run
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # a page took under a minute live; the README blocks have their own jobs
+    env:
+      BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+      # On the daily schedule there are no inputs, so fall back to one cheap page.
+      URLS: ${{ inputs.urls || 'https://example.com' }}
+      # the async path and the field tables run on every scheduled run and on request
+      CHECK: ${{ github.event_name == 'schedule' || inputs.validate }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install the package
+        run: pip install -e .
+
+      - name: Do the README's links still resolve?
+        run: |
+          public=$(curl -s -o /dev/null -w '%{http_code}' https://github.com/brightdata/fetch-api-scraper)
+          failed=0
+          # links in prose only: fenced blocks hold code and scraped output, and the
+          # weekly run executes the code blocks anyway
+          for url in $(awk '/^```/{fenced=!fenced; next} !fenced' README.md AGENTS.md | grep -ohE 'https?://[^ )<>"`\\]+' | sed 's/[.,:]*$//' | sort -u); do
+            case "$url" in
+              *zendesk.com/*) continue ;;    # answers 403 to anything that is not a browser
+              *mcp.brightdata.com/*) continue ;;  # carries a placeholder token; nothing to check without a real one
+              *api.brightdata.com/*) continue ;;  # API endpoints answer 401 without a key; the README blocks call them
+              *github.com/brightdata/fetch-api-scraper*) [ "$public" = "200" ] || continue ;;  # this repo and its Node twin, unreachable while private
+            esac
+            code=$(curl -s -o /dev/null -L --retry 3 --max-time 30 -A "Mozilla/5.0" -w '%{http_code}' "$url" || echo 000)
+            if [ "$code" = "200" ]; then echo "200 $url"; else echo "::error::$code $url"; failed=1; fi
+          done
+          [ "$failed" = 0 ] || exit 1
+      - name: Fetch the pages
+        run: |
+          test -n "$BRIGHTDATA_API_TOKEN" || {
+            echo "No API token. Add BRIGHTDATA_API_TOKEN under" >&2
+            echo "Settings, Secrets and variables, Actions, then start this again." >&2
+            exit 1
+          }
+          read -ra KW <<< "$URLS"
+          # One retry, only on an API timeout. A slow day is not a broken build.
+          set +e
+          python -m fetch_api_scraper "${KW[@]}" 2>&1 | tee run.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != "0" ] && grep -qi "timeout" run.log; then
+            echo "::warning::The API timed out. Waiting 30s and trying once more."
+            sleep 30
+            python -m fetch_api_scraper "${KW[@]}" 2>&1 | tee run.log
+            code=${PIPESTATUS[0]}
+          fi
+          exit "$code"
+
+      - name: Show what was found
+        if: always()
+        run: |
+          set -o pipefail
+          test -f pages.json || exit 0
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+
+          doc = json.load(open("pages.json"))
+          print(f"Run at {doc['generated_at']}\n")
+          print("| url | title | Markdown characters | final URL |")
+          print("| --- | --- | --- | --- |")
+          for entry in doc["pages"]:
+              page = entry["page"] or {}
+              print(
+                  f"| {entry['url']} | {page.get('page_title')} "
+                  f"| {len(page.get('markdown') or '')} | {page.get('final_url')} |"
+              )
+          first = next((e["page"] for e in doc["pages"] if e["page"]), None)
+          if first:
+              print("\n<details><summary>First record in full</summary>\n")
+              print("```json")
+              print(json.dumps(first, indent=2, ensure_ascii=False))
+              print("```\n")
+              print("</details>")
+          PY
+
+      # The two daily checks. A live request is already covered by the step above.
+      - name: Does the async trigger, status, fetch path still work?
+        if: env.CHECK == 'true'
+        run: |
+          set -o pipefail
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import time
+
+          from fetch_api_scraper import FETCH_API, fetch_snapshot, status, trigger
+
+          sid = trigger(FETCH_API, [{"url": "https://example.com"}])
+          for _ in range(90):  # up to 15 minutes
+              state = status(sid)
+              if state in ("ready", "failed"):
+                  break
+              time.sleep(10)
+          assert state == "ready", f"snapshot {sid} ended as {state}"
+          rows = fetch_snapshot(sid)
+          assert rows and rows[0].get("markdown"), f"fetch returned no page: {rows[:1]}"
+          print(f"\nAsync path ok: trigger, status, fetch returned {len(rows)} record(s).")
+          PY
+
+      - name: Regenerate the README field tables from the live schema
+        if: always() && env.CHECK == 'true' && github.repository == 'brightdata/fetch-api-scraper' && github.ref == 'refs/heads/main'
+        run: |
+          python .github/scripts/field_tables.py | tee -a "$GITHUB_STEP_SUMMARY"
+          if git diff --quiet README.md; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          # Never commit a README the tests would reject.
+          pip install -q -e ".[dev]" && pytest -q
+          git config user.name "anil-bd"
+          git config user.email "210667061+anil-bd@users.noreply.github.com"
+          git add README.md
+          git commit -m "Regenerate the field tables from the live schema (automated daily check)"
+          git pull --rebase origin main
+          git push
+          echo "Committed the regenerated tables."
+
+      - name: Attach pages.json so you can download it
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        if: always()
+        with:
+          name: pages-json
+          path: pages.json
+          if-no-files-found: warn
+
+  # Every code block in the README, each in its own job, all at once. Mondays,
+  # and on request. Wall clock is the slowest block instead of the sum of all.
+  plan:
+    name: List the README blocks
+    if: github.event.schedule == '0 8 * * 1' || inputs.validate == true
+    runs-on: ubuntu-latest
+    outputs:
+      blocks: ${{ steps.list.outputs.blocks }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - id: list
+        env:
+          ONLY: ${{ inputs.only }}
+        run: python .github/scripts/readme_blocks.py list >> "$GITHUB_OUTPUT"
+
+  block:
+    name: "${{ matrix.n }}. ${{ matrix.title }}"
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45  # a snippet waits up to 15 minutes, and gets one retry; past this is stuck
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.blocks) }}
+    env:
+      BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install the package and, for CLI blocks, the Bright Data CLI
+        env:
+          LANG_: ${{ matrix.lang }}
+        run: |
+          pip install -e .
+          if [ "$LANG_" = "bash" ]; then npm i -g "@brightdata/cli@$BDATA_CLI"; fi
+      - name: Run block ${{ matrix.n }} exactly as the README shows it
+        env:
+          N: ${{ matrix.n }}
+        run: |
+          set -o pipefail  # without this, tee's exit code hides a failing block
+          python .github/scripts/readme_blocks.py run "$N" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  cli-syntax:
+    name: Does the newest CLI still accept the README's commands?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # no secret here on purpose: this job runs whatever npm calls latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Install the newest CLI, as a reader's npx would
+        run: |
+          npm i -g @brightdata/cli@latest
+          latest=$(bdata --version)
+          echo "Newest CLI: $latest. Pinned for the live jobs: $BDATA_CLI."
+          if [ "$latest" != "$BDATA_CLI" ]; then
+            echo "::warning::@brightdata/cli $latest is out; the live jobs still pin $BDATA_CLI. Bump BDATA_CLI in live.yml once this job passes."
+          fi
+      - name: Run each README CLI line with a key the API rejects
+        env:
+          BDATA_CLI: ""  # use the newest, not the pin
+        run: |
+          set -o pipefail
+          python3 .github/scripts/readme_blocks.py cli-syntax | tee -a "$GITHUB_STEP_SUMMARY"
+
+  badge:
+    name: Put today's date on the README's "last verified" badge
+    needs: [scrape, plan, block, cli-syntax]
+    # scheduled and manual runs on main only, and only in the main repository: a
+    # push is never followed by a bot commit, a copy never diverges from the
+    # original, and a manual run on a branch never tries to push main
+    # `inputs.only` empty as well: one block passing is not the README verified.
+    if: always() && !cancelled() && github.event_name != 'push' && inputs.only == '' && github.repository == 'brightdata/fetch-api-scraper' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Rewrite one badge line, commit only if it changed
+        env:
+          SCRAPE: ${{ needs.scrape.result }}
+          BLOCKS: ${{ needs.block.result }}  # skipped on the daily run, and that is fine
+          SYNTAX: ${{ needs.cli-syntax.result }}
+        run: |
+          if [ "$SCRAPE" = "success" ] && [ "$SYNTAX" = "success" ] && { [ "$BLOCKS" = "success" ] || [ "$BLOCKS" = "skipped" ]; }; then
+            label="last verified"; color="brightgreen"
+          else
+            label="last check failed"; color="red"
+          fi
+          today=$(date -u +'%-d %b %Y')
+          line="[![${label}](https://img.shields.io/badge/${label// /%20}-${today// /%20}-${color})](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->"
+          python3 - "$line" <<'PY'
+          import pathlib, re, sys
+          p = pathlib.Path("README.md"); t = p.read_text(encoding="utf-8")
+          new, n = re.subn(r"^\[!\[last [^\]]*\]\(https://img\.shields\.io/badge/[^)]*\)\]\([^)]*\) <!-- verified:[^\n]*$", sys.argv[1], t, count=1, flags=re.M)
+          if n != 1:
+              sys.exit("the badge line is missing from README.md")
+          p.write_text(new, encoding="utf-8")
+          PY
+          if git diff --quiet; then echo "badge already shows $today"; exit 0; fi
+          git config user.name "anil-bd"
+          git config user.email "210667061+anil-bd@users.noreply.github.com"
+          git commit -qam "${label^} $today (automated daily check)"
+          git pull -q --rebase origin main
+          git push -q origin main
+          echo "badge now shows: $label, $today"
+
+  # A red scheduled run used to show only as a red badge. Open one issue and keep
+  # adding to it, so a failure reaches the people watching the repository.
+  alert:
+    name: Open or update the live-check issue
+    needs: [scrape, block, cli-syntax]
+    if: failure() && github.event_name == 'schedule' && github.repository == 'brightdata/fetch-api-scraper'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULTS: "scrape ${{ needs.scrape.result }}, README blocks ${{ needs.block.result }}, CLI syntax ${{ needs.cli-syntax.result }}"
+        run: |
+          title="Live check is failing"
+          body="$(date -u +'%-d %b %Y'): $RESULTS. $RUN"
+          n=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
