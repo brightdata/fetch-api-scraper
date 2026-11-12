@@ -50,14 +50,14 @@ pages disagree with the live API, the live API is what is written here.
 - CI follows the README's own commands on an empty machine, finding its
   sections by their exact H2 text. Rename a heading in ci.yml too.
 - A weekly workflow executes every fenced block in the README against the real
-  API, and a daily one runs a smaller live check. A snippet must be complete
+  API, and the same run also does a smaller live check. A snippet must be complete
   and paste-able on its own, and its shown output must be real.
 - The field table in the README sits between `<!-- fields:start -->` and
-  `<!-- fields:end -->` and is regenerated daily by
+  `<!-- fields:end -->` and is regenerated weekly by
   `.github/scripts/field_tables.py` from
   https://docs.brightdata.com/scrapers-full.json. Do not edit it by hand.
 - The "last verified" badge line at the top of the README is rewritten by the
-  daily run. Do not edit it by hand.
+  weekly run. Do not edit it by hand.
 - Headings are written for search: "URL to Markdown for Python", "How to convert a URL to
   Markdown ...". Keep that
   pattern when adding a section.

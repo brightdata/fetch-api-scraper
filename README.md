@@ -4,7 +4,7 @@ Convert any URL to Markdown, text, HTML or JSON-LD with Python, for LLMs and RAG
 Built on the [Bright Data Fetch API](https://docs.brightdata.com/products/scrapers/fetch-api/introduction?utm_source=github&utm_medium=referral&utm_content=fetch-api-scraper). New accounts get 5,000 free credits a month.
 
 [![Live check](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml)
-[![last verified](https://img.shields.io/badge/last%20verified-11%20Nov%202026-brightgreen)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->
+[![last verified](https://img.shields.io/badge/last%20verified-11%20Nov%202026-brightgreen)](https://github.com/brightdata/fetch-api-scraper/actions/workflows/live.yml) <!-- verified: rewritten by the weekly run -->
 
 [Quickstart](#how-to-convert-a-url-to-markdown-with-python) · [Any website](#scrape-any-website-even-ones-that-block-bots) · [CLI](#bulk-url-to-markdown-cli) · [Formats](#website-to-markdown-text-html-and-json-ld-for-llms) · [Data](#fetch-api-data-fields-json) · [Errors](#fetch-api-scraper-errors) · [MCP and Claude Code](#fetch-api-mcp-server-and-claude-code-skill) · [Free credits](#is-the-fetch-api-free) · [Docs](https://docs.brightdata.com/products/scrapers/fetch-api/introduction?utm_source=github&utm_medium=referral&utm_content=fetch-api-scraper) · [Support](#support)
 
@@ -307,7 +307,7 @@ The code hardcodes no field list. Whatever the API returns lands in each
 record, and in the command's file.
 
 <!-- fields:start -->
-Regenerated every day from the published schema,
+Regenerated every week from the published schema,
 [scrapers-full.json](https://docs.brightdata.com/scrapers-full.json), so they cannot go stale. A record
 carries the fields that apply to it, plus `timestamp` and `input`; the
 sample file's first page has 9 keys.
@@ -357,7 +357,7 @@ sample file's first page has 9 keys.
 ```
 
 The whole file, one page with every field, is
-[examples/sample_output.json](examples/sample_output.json).
+[examples/sample_output.json](https://github.com/brightdata/fetch-api-scraper/blob/main/examples/sample_output.json).
 
 </details>
 
@@ -422,13 +422,13 @@ The Fetch API bills per record, one per page.
 
 Bugs in this repo:
 [open an issue](https://github.com/brightdata/fetch-api-scraper/issues), and
-[CONTRIBUTING.md](CONTRIBUTING.md) says what to put in it.
+[CONTRIBUTING.md](https://github.com/brightdata/fetch-api-scraper/blob/main/CONTRIBUTING.md) says what to put in it.
 Anything about the API, your account or your credits:
 [Bright Data support](https://brightdata.zendesk.com/hc/en-us/requests/new).
 
 ## License
 
-[Apache 2.0](LICENSE).
+[Apache 2.0](https://github.com/brightdata/fetch-api-scraper/blob/main/LICENSE).
 
 ## URL to Markdown for Node.js
 

@@ -3,12 +3,23 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "fetch-api-scraper"
-version = "0.1.0"
+name = "brightdata-fetch-api-scraper"
+dynamic = ["version"]
 description = "Fetch API scraper in Python: any public web page as Markdown, plain text, HTML and JSON-LD, ready for an LLM, on the Bright Data Fetch API. Gets past bot blocks with no browser and no dependencies. 5,000 free credits a month."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
+authors = [{ name = "Bright Data" }]
+keywords = ["fetchapi", "fetch-api-scraper", "scraper", "web-scraping", "bright-data", "html", "markdown", "fetch", "crawler"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Internet :: WWW/HTTP",
+]
 dependencies = []
 
 [project.optional-dependencies]
@@ -19,6 +30,13 @@ fetch-api-scraper = "fetch_api_scraper.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/brightdata/fetch-api-scraper"
+Documentation = "https://docs.brightdata.com/products/scrapers/fetch-api/introduction"
+Source = "https://github.com/brightdata/fetch-api-scraper"
+Issues = "https://github.com/brightdata/fetch-api-scraper/issues"
+Changelog = "https://github.com/brightdata/fetch-api-scraper/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/fetch_api_scraper/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fetch_api_scraper"]
